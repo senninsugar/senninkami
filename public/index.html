@@ -2,381 +2,109 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Web Browser</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>senninproxy v2</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        /* --- デザイン定義 --- */
         :root {
-            --bg-color: #0f0f0f;
-            --toolbar-color: #1e1e1e;
-            --address-bg: #2b2b2b;
+            --bg-color: #0b0b0b;
             --text-color: #ffffff;
-            --accent-color: #007aff; 
-            --tab-inactive: #252525;
-            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --accent-color: #007aff;
+            --input-bg: rgba(255, 255, 255, 0.05);
         }
-
         body, html { 
             margin: 0; padding: 0; height: 100%; 
             background: var(--bg-color); color: var(--text-color); 
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             overflow: hidden; 
-            -webkit-tap-highlight-color: transparent;
         }
-
-        .browser-container { display: flex; flex-direction: column; height: 100vh; }
-
-        /* --- タブバー (左固定ボタン & アニメーション) --- */
-        .tab-bar-container {
-            display: flex; background: #000; align-items: center; padding-left: 5px;
+        .container {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            height: 100vh; width: 100%; transition: opacity 0.5s ease;
+            text-align: center;
         }
-        
-        .add-tab-btn { 
-            background: none; border: none; color: var(--accent-color); 
-            cursor: pointer; padding: 12px; font-size: 18px; transition: 0.2s;
-            flex-shrink: 0;
+        h1 {
+            font-weight: 400; font-size: 2.5rem; letter-spacing: 2px; margin-bottom: 30px;
+            color: var(--text-color);
         }
-        .add-tab-btn:hover { transform: scale(1.15); }
-
-        .tab-bar {
-            display: flex; gap: 6px; align-items: flex-end; padding: 10px 10px 0 0;
-            overflow-x: auto; scroll-behavior: smooth; flex-grow: 1;
+        .search-wrapper {
+            width: 90%; max-width: 600px;
         }
-        .tab-bar::-webkit-scrollbar { display: none; }
-
-        .tab {
-            background: var(--tab-inactive); color: #888; padding: 10px 20px;
-            border-radius: 12px 12px 0 0; cursor: pointer; display: flex; align-items: center;
-            min-width: 140px; max-width: 220px; font-size: 13px; font-weight: 500;
-            transition: var(--transition); position: relative;
-            border: 1px solid rgba(255,255,255,0.05); border-bottom: none;
-            user-select: none;
+        .search-bar {
+            width: 100%; background: var(--input-bg); border: 1px solid rgba(255,255,255,0.1);
+            padding: 16px 25px; border-radius: 12px; color: white; font-size: 16px;
+            outline: none; transition: 0.3s; box-sizing: border-box;
         }
-        
-        .tab.moving { transform: translateY(-5px); box-shadow: 0 5px 15px rgba(0,0,0,0.5); z-index: 100; }
-        .tab.active { background: var(--toolbar-color); color: var(--text-color); min-width: 180px; }
-        
-        .tab .close-tab { 
-            margin-left: auto; width: 18px; height: 18px; display: flex; 
-            align-items: center; justify-content: center; border-radius: 50%;
-            font-size: 10px; transition: 0.2s;
+        .search-bar:focus {
+            background: rgba(255, 255, 255, 0.08); border-color: var(--accent-color);
         }
-        .tab .close-tab:hover { background: rgba(255,255,255,0.2); }
-
-        /* --- ツールバー --- */
-        .toolbar-wrapper { position: relative; }
-        
-        .loading-bar {
-            position: absolute; bottom: 0; left: 0; height: 2px;
-            background: var(--accent-color); width: 0%;
-            transition: width 0.4s ease, opacity 0.3s ease;
-            z-index: 100; box-shadow: 0 0 10px var(--accent-color);
+        #frame-container {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #fff; display: none; z-index: 100;
         }
-
-        .toolbar { 
-            display: flex; align-items: center; padding: 12px 20px; 
-            background: var(--toolbar-color); border-bottom: 1px solid #333; gap: 20px;
+        iframe { width: 100%; height: 100%; border: none; }
+        .back-home {
+            position: fixed; bottom: 30px; right: 30px; z-index: 101;
+            background: var(--accent-color); color: white; width: 50px; height: 50px;
+            border-radius: 50%; display: none; align-items: center; justify-content: center;
+            cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.5); font-size: 20px;
         }
-        .nav-buttons { display: flex; gap: 10px; }
-        .nav-buttons button {
-            background: rgba(255,255,255,0.05); border: none; color: #fff; font-size: 18px; 
-            cursor: pointer; width: 40px; height: 40px; border-radius: 50%; transition: 0.2s;
-        }
-        .nav-buttons button:active { background: var(--accent-color); transform: scale(0.9); }
-
-        .address-bar {
-            flex-grow: 1; display: flex; align-items: center; 
-            background: var(--address-bg); border-radius: 12px; padding: 10px 20px;
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.2); transition: 0.3s;
-        }
-        .address-bar:focus-within { background: #383838; }
-        .address-bar i { color: #888; margin-right: 12px; }
-        .address-bar input {
-            background: none; border: none; color: white; width: 100%; outline: none; font-size: 16px;
-        }
-
-        /* --- コンテンツエリア --- */
-        .content-area { flex-grow: 1; position: relative; background: #fff; }
-        .view-container { width: 100%; height: 100%; display: none; border: none; }
-        .view-container.active { display: block; }
-
-        /* --- ホーム画面 & 404画面 --- */
-        .home-screen, .error-screen {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: var(--bg-color); display: flex; flex-direction: column; 
-            align-items: center; justify-content: center; z-index: 10;
-            background-image: radial-gradient(circle at center, #1a1a1a 0%, #0f0f0f 100%);
-        }
-        .error-screen { display: none; z-index: 20; }
-        
-        .display-text h1 { 
-            font-size: 4rem; font-weight: 200; margin-bottom: 30px; 
-            letter-spacing: 4px; color: #fff; text-align: center;
-            opacity: 0.9;
-        }
-        
-        /* ホーム画面用検索バー */
-        .home-search-box {
-            width: 80%; max-width: 600px; display: flex; align-items: center;
-            background: rgba(255,255,255,0.08); border-radius: 30px; padding: 15px 25px;
-            border: 1px solid rgba(255,255,255,0.1); transition: 0.3s;
-        }
-        .home-search-box:focus-within {
-            background: rgba(255,255,255,0.12);
-            border-color: var(--accent-color);
-            box-shadow: 0 0 20px rgba(0, 122, 255, 0.2);
-        }
-        .home-search-box i { color: #888; margin-right: 15px; font-size: 18px; }
-        .home-search-box input {
-            background: none; border: none; color: white; width: 100%; outline: none; font-size: 18px;
-        }
-
-        .error-screen h1 { color: #ff3b30; font-weight: 800; }
-        .error-screen p { color: var(--accent-color); font-weight: 500; letter-spacing: 2px; }
-
-        /* --- アラート --- */
-        #alert-box {
-            position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px);
-            background: #ff3b30; color: white; padding: 15px 30px; border-radius: 30px;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.3); z-index: 9999; transition: 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-        #alert-box.show { transform: translateX(-50%) translateY(0); }
     </style>
 </head>
 <body>
 
-    <div id="alert-box">エラーが発生しました。</div>
-
-    <div class="browser-container">
-        <div class="tab-bar-container">
-            <button class="add-tab-btn" onclick="createNewTab()"><i class="fas fa-plus"></i></button>
-            <div class="tab-bar" id="tab-bar"></div>
-        </div>
-
-        <div class="toolbar-wrapper">
-            <div id="loading-bar" class="loading-bar"></div>
-            <div class="toolbar">
-                <div class="nav-buttons">
-                    <button onclick="controlIframe('back')"><i class="fas fa-chevron-left"></i></button>
-                    <button onclick="controlIframe('forward')"><i class="fas fa-chevron-right"></i></button>
-                    <button onclick="controlIframe('reload')"><i class="fas fa-redo-alt"></i></button>
-                </div>
-                <form id="proxy-form" class="address-bar">
-                    <i class="fas fa-search"></i>
-                    <input type="text" id="url-input" placeholder="検索ワードまたはURLを入力" autocomplete="off">
-                </form>
-            </div>
-        </div>
-
-        <div class="content-area" id="content-area"></div>
+    <div class="container" id="main-ui">
+        <h1>senninproxy v2</h1>
+        <form class="search-wrapper" id="proxy-form">
+            <input type="text" class="search-bar" id="url-input" placeholder="検索またはURLを入力" autocomplete="off">
+        </form>
     </div>
 
+    <div id="frame-container">
+        <iframe id="proxy-frame"></iframe>
+    </div>
+    <div class="back-home" id="home-btn" onclick="goHome()"><i class="fas fa-home"></i></div>
+
     <script>
-        let tabCount = 0;
-        let activeTabId = null;
-        const tabs = [];
-        const tabBar = document.getElementById('tab-bar');
-        const contentArea = document.getElementById('content-area');
-        const urlInput = document.getElementById('url-input');
-        const alertBox = document.getElementById('alert-box');
-        const loadingBar = document.getElementById('loading-bar');
+        const form = document.getElementById('proxy-form');
+        const input = document.getElementById('url-input');
+        const frameContainer = document.getElementById('frame-container');
+        const frame = document.getElementById('proxy-frame');
+        const mainUi = document.getElementById('main-ui');
+        const homeBtn = document.getElementById('home-btn');
 
-        function showAlert(msg) {
-            alertBox.innerText = msg;
-            alertBox.classList.add('show');
-            setTimeout(() => alertBox.classList.remove('show'), 3000);
-        }
+        form.onsubmit = (e) => {
+            e.preventDefault();
+            let val = input.value.trim();
+            if (!val) return;
 
-        function startLoading() {
-            loadingBar.style.opacity = '1';
-            loadingBar.style.width = '30%';
-            setTimeout(() => { if(loadingBar.style.width === '30%') loadingBar.style.width = '70%'; }, 500);
-        }
+            let targetUrl = "";
+            if (val.includes('.') && !val.includes(' ')) {
+                targetUrl = val.startsWith('http') ? val : 'https://' + val;
+            } else {
+                targetUrl = 'https://duckduckgo.com/?q=' + encodeURIComponent(val);
+            }
 
-        function finishLoading() {
-            loadingBar.style.width = '100%';
+            mainUi.style.opacity = "0";
             setTimeout(() => {
-                loadingBar.style.opacity = '0';
-                setTimeout(() => { loadingBar.style.width = '0%'; }, 300);
-            }, 200);
-        }
-
-        function navigate(targetUrl, tabId) {
-            let url = targetUrl.trim();
-            if (!url) return;
-
-            if (!url.includes('.')) {
-                url = "https://www.google.com/search?q=" + encodeURIComponent(url);
-            } else if (!(url.startsWith('http'))) {
-                url = 'https://' + url;
-            }
-
-            const activeIframe = document.getElementById(tabId);
-            document.getElementById(`home-${tabId}`).style.display = 'none';
-            document.getElementById(`error-${tabId}`).style.display = 'none';
-            
-            startLoading();
-            activeIframe.src = `/main/${url}`;
-            
-            activeIframe.onerror = () => {
-                finishLoading();
-                document.getElementById(`error-${tabId}`).style.display = 'flex';
-            };
-        }
-
-        function createNewTab() {
-            tabCount++;
-            const tabId = `tab-${Date.now()}`;
-            
-            const tab = document.createElement('div');
-            tab.className = 'tab';
-            tab.id = `btn-${tabId}`;
-            tab.draggable = true;
-            tab.innerHTML = `
-                <span class="tab-title">新しいタブ</span>
-                <span class="close-tab" onclick="closeTab(event, '${tabId}')"><i class="fas fa-times"></i></span>
-            `;
-            tab.onclick = () => switchTab(tabId);
-            
-            tab.ondragstart = () => tab.classList.add('moving');
-            tab.ondragend = () => tab.classList.remove('moving');
-
-            tabBar.appendChild(tab);
-
-            const iframe = document.createElement('iframe');
-            iframe.className = 'view-container';
-            iframe.id = tabId;
-            iframe.onload = () => {
-                finishLoading();
-                updateTabTitle(tabId);
-            };
-            contentArea.appendChild(iframe);
-
-            // ホーム画面
-            const home = document.createElement('div');
-            home.className = 'home-screen display-text';
-            home.id = `home-${tabId}`;
-            home.innerHTML = `
-                <h1>Browser</h1>
-                <form class="home-search-box" onsubmit="event.preventDefault(); navigate(this.querySelector('input').value, '${tabId}')">
-                    <i class="fas fa-search"></i>
-                    <input type="text" placeholder="ウェブを検索、またはURLを入力" autocomplete="off">
-                </form>
-            `;
-            contentArea.appendChild(home);
-
-            // 404画面
-            const error = document.createElement('div');
-            error.className = 'error-screen display-text';
-            error.id = `error-${tabId}`;
-            error.innerHTML = `
-                <h1>404</h1>
-                <p>PAGE NOT FOUND</p>
-                <button style="margin-top:20px; padding:10px 20px; background:var(--accent-color); border:none; color:white; border-radius:8px; cursor:pointer;" onclick="goHome()">ホームに戻る</button>
-            `;
-            contentArea.appendChild(error);
-
-            tabs.push({ id: tabId });
-            switchTab(tabId);
-        }
-
-        function switchTab(tabId) {
-            activeTabId = tabId;
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.view-container').forEach(v => v.classList.remove('active'));
-            document.querySelectorAll('.home-screen, .error-screen').forEach(h => h.style.display = 'none');
-
-            const targetTab = document.getElementById(`btn-${tabId}`);
-            if (targetTab) targetTab.classList.add('active');
-            
-            const targetIframe = document.getElementById(tabId);
-            if (targetIframe) {
-                targetIframe.classList.add('active');
-                if (targetIframe.src === "" || targetIframe.src === window.location.href || targetIframe.src === "about:blank") {
-                    document.getElementById(`home-${tabId}`).style.display = 'flex';
-                    urlInput.value = '';
-                } else {
-                    try {
-                        const path = targetIframe.contentWindow.location.pathname;
-                        urlInput.value = path.replace('/main/', '');
-                    } catch(e) { /* ignore */ }
-                }
-            }
-        }
-
-        function closeTab(event, tabId) {
-            event.stopPropagation();
-            if (tabs.length <= 1) {
-                showAlert("最後のタブです。");
-                return;
-            }
-
-            const tabElement = document.getElementById(`btn-${tabId}`);
-            tabElement.style.opacity = '0';
-            tabElement.style.transform = 'scale(0.8)';
-            
-            setTimeout(() => {
-                tabElement.remove();
-                document.getElementById(tabId).remove();
-                document.getElementById(`home-${tabId}`).remove();
-                document.getElementById(`error-${tabId}`).remove();
-
-                const index = tabs.findIndex(t => t.id === tabId);
-                tabs.splice(index, 1);
-                if (activeTabId === tabId) switchTab(tabs[tabs.length - 1].id);
-            }, 200);
-        }
-
-        function updateTabTitle(tabId) {
-            const ifr = document.getElementById(tabId);
-            const btn = document.getElementById(`btn-${tabId}`);
-            if (ifr && btn) {
-                try {
-                    const title = ifr.contentDocument.title || ifr.src.split('/')[2];
-                    if (title) btn.querySelector('.tab-title').innerText = title.substring(0, 15);
-                } catch(e) {}
-            }
-        }
+                mainUi.style.display = "none";
+                frameContainer.style.display = "block";
+                homeBtn.style.display = "flex";
+                frame.src = window.location.origin + '/prefix/' + btoa(targetUrl);
+            }, 500);
+        };
 
         function goHome() {
-            const ifr = document.getElementById(activeTabId);
-            ifr.src = "about:blank";
-            switchTab(activeTabId);
+            frame.src = "about:blank";
+            frameContainer.style.display = "none";
+            homeBtn.style.display = "none";
+            mainUi.style.display = "flex";
+            setTimeout(() => mainUi.style.opacity = "1", 50);
+            input.value = "";
+            input.focus();
         }
 
-        function controlIframe(action) {
-            const ifr = document.getElementById(activeTabId);
-            if (!ifr) return;
-            startLoading();
-            try {
-                if (action === 'back') ifr.contentWindow.history.back();
-                if (action === 'forward') ifr.contentWindow.history.forward();
-                if (action === 'reload') ifr.contentWindow.location.reload();
-            } catch (e) {
-                finishLoading();
-                showAlert("操作が制限されています。");
-            }
-        }
-
-        document.getElementById('proxy-form').addEventListener('submit', e => {
-            e.preventDefault();
-            urlInput.blur();
-            navigate(urlInput.value, activeTabId);
-        });
-
-        window.onload = createNewTab;
-
-        tabBar.addEventListener('dragover', e => {
-            e.preventDefault();
-            const dragging = document.querySelector('.moving');
-            if(!dragging) return;
-            const siblings = [...tabBar.querySelectorAll('.tab:not(.moving)')];
-            const nextSibling = siblings.find(sibling => {
-                return e.clientX <= sibling.offsetLeft + sibling.offsetWidth / 2;
-            });
-            tabBar.insertBefore(dragging, nextSibling);
-        });
+        window.onload = () => input.focus();
     </script>
 </body>
 </html>
